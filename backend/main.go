@@ -8,11 +8,20 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/cors"
 	"github.com/lafin/tallinn-transport/provider"
 )
 
 func main() {
 	router := chi.NewRouter()
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: false,
+		MaxAge:           300,
+	}))
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
@@ -28,12 +37,11 @@ func main() {
 			log.Printf("[ERROR] get transport, %s", err)
 		}
 
-		bodyJson, err := json.Marshal(append(tallinnTransport, elronTransport...))
+		body, err := json.Marshal(append(tallinnTransport, elronTransport...))
 		if err != nil {
 			log.Printf("[ERROR] marshal json, %s", err)
 		}
-		fmt.Println(string(bodyJson))
-		_, err = w.Write(bodyJson)
+		_, err = w.Write(body)
 		if err != nil {
 			log.Printf("[ERROR] write body, %s", err)
 		}

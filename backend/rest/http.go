@@ -1,3 +1,4 @@
+// Package rest contains useful methods for working with http
 package rest
 
 import (
@@ -6,6 +7,7 @@ import (
 	"time"
 )
 
+// Get - wrapper to execute http GET request
 func Get(url string) ([]byte, error) {
 	transport := &http.Transport{
 		MaxIdleConns:        10,

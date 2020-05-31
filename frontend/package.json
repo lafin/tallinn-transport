@@ -1,0 +1,44 @@
+{
+  "name": "tallinn-transport-map",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "leaflet": "^1.6.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "react-leaflet": "^2.7.0",
+    "react-scripts": "3.4.1",
+    "typescript": "^3.9.3"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build && mv build app",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.9.0",
+    "@testing-library/react": "^10.0.4",
+    "@testing-library/user-event": "^10.4.0",
+    "@types/jest": "^25.2.3",
+    "@types/node": "^14.0.6",
+    "@types/react": "^16.9.35",
+    "@types/react-dom": "^16.9.8",
+    "@types/react-leaflet": "^2.5.1"
+  }
+}

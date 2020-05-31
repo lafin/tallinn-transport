@@ -1,43 +1,80 @@
-name: analytics
+name: actions
 
 on: push
 
 jobs:
-  analytics:
+  actions:
     runs-on: ubuntu-latest
     steps:
-      - name: set up go 1.13
+      - name: Set up go
         uses: actions/setup-go@v1
         with:
-          go-version: 1.13
+          go-version: 1.14
         id: go
 
-      - name: checkout
+      - name: Checkout
         uses: actions/checkout@v1
 
-      - name: build and test
+      - name: Build and test
         run: |
-          cd $GITHUB_WORKSPACE && go test -timeout=60s -covermode=count -coverprofile=$GITHUB_WORKSPACE/profile.cov_tmp ./...
+          cd $GITHUB_WORKSPACE/backend && go test -timeout=60s -covermode=count -coverprofile=$GITHUB_WORKSPACE/profile.cov_tmp ./...
           cat $GITHUB_WORKSPACE/profile.cov_tmp | grep -v "_mock.go" > $GITHUB_WORKSPACE/profile.cov
 
-      - name: install golangci-lint and goveralls
+      - name: Install golangci-lint and goveralls
         run: |
-          curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $GITHUB_WORKSPACE v1.23.8
+          curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $GITHUB_WORKSPACE v1.27.0
           GO111MODULE=off go get -u -v github.com/mattn/goveralls
 
-      - name: run linters
-        run: cd $GITHUB_WORKSPACE && $GITHUB_WORKSPACE/golangci-lint run --modules-download-mode=readonly
+      - name: Run linters
+        run: cd $GITHUB_WORKSPACE/backend && $GITHUB_WORKSPACE/golangci-lint run --modules-download-mode=readonly
 
-      - name: submit coverage
+      - name: Submit coverage
         run: $(go env GOPATH)/bin/goveralls -service="github" -coverprofile=$GITHUB_WORKSPACE/profile.cov
         env:
           COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: build image
-        run: docker build --build-arg VERSION=$GITHUB_REF:$GITHUB_SHA -t $GITHUB_REPOSITORY .
+      - name: Set env variables
+        run: |
+          echo ::set-env name=TAG::$(echo $GITHUB_SHA | head -c7)
 
-      - name: publish image
+      - name: Build image
+        run: |
+          docker build --build-arg VERSION=$GITHUB_REF:$GITHUB_SHA -t $GITHUB_REPOSITORY-api -f Dockerfile.backend .
+          docker build --build-arg VERSION=$GITHUB_REF:$GITHUB_SHA -t $GITHUB_REPOSITORY-web -f Dockerfile.frontend .
+
+      - name: Publish image
         if: github.ref == 'refs/heads/master'
         run: |
           docker login -u $GITHUB_ACTOR -p ${{ secrets.GITHUB_DOCKER_TOKEN }}
-          docker push $GITHUB_REPOSITORY
+          docker tag $GITHUB_REPOSITORY-api $GITHUB_REPOSITORY-api:$TAG
+          docker tag $GITHUB_REPOSITORY-web $GITHUB_REPOSITORY-web:$TAG
+          docker push $GITHUB_REPOSITORY-api
+          docker push $GITHUB_REPOSITORY-web
+
+      - name: Update deployment file
+        run: |
+          sed -i 's|<IMAGE>|'${GITHUB_REPOSITORY}-api':'${TAG}'|' $GITHUB_WORKSPACE/config/app-api.yml
+          sed -i 's|<IMAGE>|'${GITHUB_REPOSITORY}-web':'${TAG}'|' $GITHUB_WORKSPACE/config/app-web.yml
+
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.2.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Save DigitalOcean kubeconfig
+        run: |
+          ssh-keyscan ${{ secrets.DIGITALOCEAN_CLUSTER_IP }} >> $HOME/.ssh/known_hosts
+          doctl compute ssh ${{ secrets.DIGITALOCEAN_CLUSTER_NAME }} --ssh-command "kubectl config view --minify --raw" | sed -e "s/127.0.0.1/${{ secrets.DIGITALOCEAN_CLUSTER_IP }}/g" > $GITHUB_WORKSPACE/.kubeconfig
+
+      - name: Deploy to Kubernetes
+        run: kubectl --kubeconfig=$GITHUB_WORKSPACE/.kubeconfig apply -f $GITHUB_WORKSPACE/config
+
+      - name: Verify deployment
+        run: |
+          kubectl --kubeconfig=$GITHUB_WORKSPACE/.kubeconfig rollout status deployment/tallinn-transport-api-dep -n tallinn-transport-ns
+          kubectl --kubeconfig=$GITHUB_WORKSPACE/.kubeconfig rollout status deployment/tallinn-transport-web-dep -n tallinn-transport-ns

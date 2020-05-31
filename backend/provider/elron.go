@@ -8,7 +8,7 @@ import (
 	"github.com/lafin/tallinn-transport/rest"
 )
 
-type ElronResponse struct {
+type elronResponse struct {
 	Status int `json:"status"`
 	Data   []struct {
 		Reis             string `json:"reis"`
@@ -28,18 +28,28 @@ type ElronResponse struct {
 		ViimanePeatus    string `json:"viimane_peatus"`
 	} `json:"data"`
 	Src string `json:"src"`
+	URL string `json:"url,omitempty"`
 }
 
 func parseElronResponse(response []byte) ([]Transport, error) {
-	var data ElronResponse
+	var data elronResponse
 	if err := json.Unmarshal(response, &data); err != nil {
 		return nil, err
 	}
-	var items []Transport
-	for _, record := range (&data).Data {
+	records := (&data).Data
+	items := make([]Transport, 0, len(records))
+	for _, record := range records {
 		var item = Transport{
 			VehicleType: 4,
 			LineNumber:  record.Liin,
+		}
+		if record.Reis != "" {
+			value, err := strconv.Atoi(record.Reis)
+			if err != nil {
+				log.Printf("[ERROR] parse reis, %s", err)
+				return nil, err
+			}
+			item.VehicleNumber = value
 		}
 		if record.Latitude != "" {
 			value, err := strconv.ParseFloat(record.Latitude, 32)
@@ -62,6 +72,7 @@ func parseElronResponse(response []byte) ([]Transport, error) {
 	return items, nil
 }
 
+// GetElronTransport - return data from Elron
 func GetElronTransport() ([]Transport, error) {
 	response, err := rest.Get("https://elron.ee/api/v1/map")
 	if err != nil {

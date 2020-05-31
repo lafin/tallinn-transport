@@ -9,7 +9,7 @@ import (
 	"github.com/lafin/tallinn-transport/rest"
 )
 
-type TallinnTransportResponse struct {
+type tallinnTransportResponse struct { //nolint
 	VehicleType   int
 	LineNumber    string
 	Latitude      int
@@ -27,7 +27,7 @@ func parseTallinnTransportResponse(response []byte) ([]Transport, error) {
 		return nil, err
 	}
 
-	var items []Transport
+	items := make([]Transport, 0, len(records))
 	for _, record := range records {
 		item := Transport{}
 		if record[0] != "" {
@@ -44,24 +44,33 @@ func parseTallinnTransportResponse(response []byte) ([]Transport, error) {
 		if record[2] != "" {
 			value, err := strconv.ParseFloat(record[2], 32)
 			if err != nil {
-				log.Printf("[ERROR] parse latitude, %s", err)
+				log.Printf("[ERROR] parse longitude, %s", err)
 				return nil, err
 			}
-			item.Latitude = float32(value)
+			item.Longitude = float32(value / 1e6)
 		}
 		if record[3] != "" {
 			value, err := strconv.ParseFloat(record[3], 32)
 			if err != nil {
-				log.Printf("[ERROR] parse longitude, %s", err)
+				log.Printf("[ERROR] parse latitude, %s", err)
 				return nil, err
 			}
-			item.Longitude = float32(value)
+			item.Latitude = float32(value / 1e6)
+		}
+		if record[6] != "" {
+			value, err := strconv.Atoi(record[6])
+			if err != nil {
+				log.Printf("[ERROR] parse vehicleNumber, %s", err)
+				return nil, err
+			}
+			item.VehicleNumber = value
 		}
 		items = append(items, item)
 	}
 	return items, nil
 }
 
+// GetTallinnTransport - return data from Tallinn transport
 func GetTallinnTransport() ([]Transport, error) {
 	response, err := rest.Get("https://transport.tallinn.ee/gps.txt")
 	if err != nil {
