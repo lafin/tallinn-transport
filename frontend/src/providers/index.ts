@@ -1,7 +1,7 @@
 import { Point, ApiResponse } from "../interfaces";
 
 export async function getData(): Promise<ApiResponse[]> {
-  const response = await fetch(`/api`, {
+  const response = await fetch(`/api/`, {
     method: "GET",
     mode: "cors",
     cache: "no-cache",

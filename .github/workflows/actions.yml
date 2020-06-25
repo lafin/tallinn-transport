@@ -51,11 +51,6 @@ jobs:
           docker push $GITHUB_REPOSITORY-api
           docker push $GITHUB_REPOSITORY-web
 
-      - name: Update deployment file
-        run: |
-          sed -i 's|<IMAGE>|'${GITHUB_REPOSITORY}-api':'${TAG}'|' $GITHUB_WORKSPACE/config/app-api.yml
-          sed -i 's|<IMAGE>|'${GITHUB_REPOSITORY}-web':'${TAG}'|' $GITHUB_WORKSPACE/config/app-web.yml
-
       - name: Setup SSH key
         uses: webfactory/ssh-agent@v0.2.0
         with:
@@ -66,15 +61,11 @@ jobs:
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
-      - name: Save DigitalOcean kubeconfig
+      - name: Deploy
         run: |
           ssh-keyscan ${{ secrets.DIGITALOCEAN_CLUSTER_IP }} >> $HOME/.ssh/known_hosts
-          doctl compute ssh ${{ secrets.DIGITALOCEAN_CLUSTER_NAME }} --ssh-command "kubectl config view --minify --raw" | sed -e "s/127.0.0.1/${{ secrets.DIGITALOCEAN_CLUSTER_IP }}/g" > $GITHUB_WORKSPACE/.kubeconfig
+          doctl compute ssh ${{ secrets.DIGITALOCEAN_CLUSTER_NAME }} --ssh-command " \
+            docker-compose -f infra/services/ttm/docker-compose.yml pull; \
+            docker-compose -f infra/services/ttm/docker-compose.yml up -d; \
+          "
 
-      - name: Deploy to Kubernetes
-        run: kubectl --kubeconfig=$GITHUB_WORKSPACE/.kubeconfig apply -f $GITHUB_WORKSPACE/config
-
-      - name: Verify deployment
-        run: |
-          kubectl --kubeconfig=$GITHUB_WORKSPACE/.kubeconfig rollout status deployment/tallinn-transport-api-dep -n tallinn-transport-ns
-          kubectl --kubeconfig=$GITHUB_WORKSPACE/.kubeconfig rollout status deployment/tallinn-transport-web-dep -n tallinn-transport-ns
