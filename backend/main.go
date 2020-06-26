@@ -8,20 +8,11 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
-	"github.com/go-chi/cors"
 	"github.com/lafin/tallinn-transport/provider"
 )
 
 func main() {
 	router := chi.NewRouter()
-	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: false,
-		MaxAge:           300,
-	}))
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
