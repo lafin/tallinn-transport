@@ -8,24 +8,40 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	cache "github.com/go-pkgz/expirable-cache"
 	"github.com/lafin/tallinn-transport/provider"
 )
 
 func main() {
+	c, _ := cache.NewCache(cache.TTL(time.Minute * 5))
 	router := chi.NewRouter()
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		tallinnTransport, err := provider.GetTallinnTransport()
+
+		var err error
+		var tallinnTransport []provider.Transport
+		tallinnTransport, err = provider.GetTallinnTransport()
 		if err != nil {
 			log.Printf("[ERROR] get tallinn transport, %s", err)
+			cached, ok := c.Get("tallinnTransport")
+			if ok {
+				tallinnTransport = cached.([]provider.Transport)
+			}
+		} else {
+			c.Set("tallinnTransport", tallinnTransport, time.Minute*5)
 		}
-		elronTransport, err := provider.GetElronTransport()
+
+		var elronTransport []provider.Transport
+		elronTransport, err = provider.GetElronTransport()
 		if err != nil {
 			log.Printf("[ERROR] get elron transport, %s", err)
-		}
-		if err != nil {
-			log.Printf("[ERROR] get transport, %s", err)
+			cached, ok := c.Get("tallinnTransport")
+			if ok {
+				elronTransport = cached.([]provider.Transport)
+			}
+		} else {
+			c.Set("elronTransport", elronTransport, time.Minute*5)
 		}
 
 		body, err := json.Marshal(append(tallinnTransport, elronTransport...))
