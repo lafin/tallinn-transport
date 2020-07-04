@@ -45,7 +45,7 @@ jobs:
       - name: Publish image
         if: github.ref == 'refs/heads/master'
         run: |
-          docker login -u $GITHUB_ACTOR -p ${{ secrets.GITHUB_DOCKER_TOKEN }}
+          docker login -u $GITHUB_ACTOR -p ${{ secrets.DOCKER_TOKEN }}
           docker tag $GITHUB_REPOSITORY-api $GITHUB_REPOSITORY-api:$TAG
           docker tag $GITHUB_REPOSITORY-web $GITHUB_REPOSITORY-web:$TAG
           docker push $GITHUB_REPOSITORY-api
@@ -68,4 +68,3 @@ jobs:
             docker-compose -f infra/services/ttm/docker-compose.yml pull; \
             docker-compose -f infra/services/ttm/docker-compose.yml up -d; \
           "
-
