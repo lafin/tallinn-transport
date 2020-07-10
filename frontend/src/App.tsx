@@ -40,8 +40,8 @@ const App: React.FunctionComponent = () => {
       <TileLayer
         attribution='Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>'
         url="https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}"
-        id="mapbox/streets-v11"
-        accessToken="pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4M29iazA2Z2gycXA4N2pmbDZmangifQ.-g_vE53SD2WrJ6tFX7QHmA"
+        id="mapbox/light-v10"
+        accessToken="pk.eyJ1IjoibGFmaW4iLCJhIjoiY2tjZ203MXljMGM2ajJ5cWszMG1wY2ExdCJ9.cPdi63ptWIqYt6MRLMseVg"
       />
       <>
         {points.map((point) => (
