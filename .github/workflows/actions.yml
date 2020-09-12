@@ -9,7 +9,7 @@ jobs:
       - name: Set up go
         uses: actions/setup-go@v1
         with:
-          go-version: 1.14
+          go-version: 1.15
         id: go
 
       - name: Checkout
@@ -36,20 +36,25 @@ jobs:
       - name: Set env variables
         run: |
           echo ::set-env name=TAG::$(echo $GITHUB_SHA | head -c7)
+          echo ::set-env name=REPOSITORY::${REPOSITORY:-$GITHUB_REPOSITORY}
+          echo ::set-env name=DOCKER_USER::${DOCKER_USER:-$GITHUB_ACTOR}
+        env:
+          REPOSITORY: ${{ secrets.REPOSITORY }}
+          DOCKER_USER: ${{ secrets.DOCKER_USER }}
 
       - name: Build image
         run: |
-          docker build --build-arg VERSION=$GITHUB_REF:$GITHUB_SHA -t $GITHUB_REPOSITORY-api -f Dockerfile.backend .
-          docker build --build-arg VERSION=$GITHUB_REF:$GITHUB_SHA -t $GITHUB_REPOSITORY-web -f Dockerfile.frontend .
+          docker build --build-arg VERSION=$GITHUB_REF:$GITHUB_SHA -t $REPOSITORY-api -f Dockerfile.backend .
+          docker build --build-arg VERSION=$GITHUB_REF:$GITHUB_SHA -t $REPOSITORY-web -f Dockerfile.frontend .
 
       - name: Publish image
         if: github.ref == 'refs/heads/master'
         run: |
-          docker login -u $GITHUB_ACTOR -p ${{ secrets.DOCKER_TOKEN }}
-          docker tag $GITHUB_REPOSITORY-api $GITHUB_REPOSITORY-api:$TAG
-          docker tag $GITHUB_REPOSITORY-web $GITHUB_REPOSITORY-web:$TAG
-          docker push $GITHUB_REPOSITORY-api
-          docker push $GITHUB_REPOSITORY-web
+          docker login -u $DOCKER_USER -p ${{ secrets.DOCKER_TOKEN }}
+          docker tag $REPOSITORY-api $REPOSITORY-api:$TAG
+          docker tag $REPOSITORY-web $REPOSITORY-web:$TAG
+          docker push $REPOSITORY-api
+          docker push $REPOSITORY-web
 
       - name: Setup SSH key
         uses: webfactory/ssh-agent@v0.2.0

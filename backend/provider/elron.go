@@ -5,7 +5,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/lafin/tallinn-transport/rest"
+	"github.com/better-than-yours/tallinn-transport/rest"
 )
 
 type elronResponse struct {

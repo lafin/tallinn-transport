@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-chi/chi"
 	cache "github.com/go-pkgz/expirable-cache"
-	"github.com/lafin/tallinn-transport/provider"
+	"github.com/better-than-yours/tallinn-transport/provider"
 )
 
 func main() {

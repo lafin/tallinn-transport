@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lafin/tallinn-transport/rest"
+	"github.com/better-than-yours/tallinn-transport/rest"
 )
 
 type tallinnTransportResponse struct { //nolint
