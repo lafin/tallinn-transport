@@ -5,7 +5,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/better-than-yours/tallinn-transport/rest"
+	"github.com/lafin/http"
 )
 
 type elronResponse struct {
@@ -74,7 +74,7 @@ func parseElronResponse(response []byte) ([]Transport, error) {
 
 // GetElronTransport - return data from Elron
 func GetElronTransport() ([]Transport, error) {
-	response, err := rest.Get("https://elron.ee/map_data.json")
+	response, err := http.Get("https://elron.ee/map_data.json", nil)
 	if err != nil {
 		return nil, err
 	}

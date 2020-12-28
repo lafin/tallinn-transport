@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/better-than-yours/tallinn-transport/rest"
+	"github.com/lafin/http"
 )
 
 type tallinnTransportResponse struct { //nolint
@@ -72,7 +72,7 @@ func parseTallinnTransportResponse(response []byte) ([]Transport, error) {
 
 // GetTallinnTransport - return data from Tallinn transport
 func GetTallinnTransport() ([]Transport, error) {
-	response, err := rest.Get("https://transport.tallinn.ee/gps.txt")
+	response, err := http.Get("https://transport.tallinn.ee/gps.txt", nil)
 	if err != nil {
 		return nil, err
 	}
