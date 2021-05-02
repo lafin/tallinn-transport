@@ -3,13 +3,17 @@ FROM node:alpine as build-frontend
 ARG VERSION
 
 COPY frontend /srv/frontend
-RUN apk add --update python make g++ && \
+RUN apk add --update python3 make g++ && \
     rm -rf /var/cache/apk/*
 RUN cd /srv/frontend && \
     npm ci && \
     npm run build
 
-FROM nginx:alpine
+FROM umputun/reproxy
 
-COPY --from=build-frontend /srv/frontend/app /usr/share/nginx/html
-EXPOSE 80
+ENV TZ=Europe/Tallinn
+COPY --from=build-frontend /srv/frontend/app /web
+
+EXPOSE 8000
+
+CMD ["--assets.location=/web", "--listen=0.0.0.0:8000"]
