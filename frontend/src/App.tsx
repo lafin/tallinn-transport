@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Map, TileLayer, CircleMarker } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker } from "react-leaflet";
 import { preparePointsToMap, getData } from "./providers";
 import { Point } from "./interfaces";
 import "./App.css";
@@ -36,7 +36,7 @@ const App: React.FunctionComponent = () => {
   }
 
   return (
-    <Map center={[init.lat, init.lng]} zoom={init.zoom}>
+    <MapContainer center={[init.lat, init.lng]} zoom={init.zoom}>
       <TileLayer
         attribution='Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>'
         url="https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}"
@@ -55,7 +55,7 @@ const App: React.FunctionComponent = () => {
           />
         ))}
       </>
-    </Map>
+    </MapContainer>
   );
 };
 
