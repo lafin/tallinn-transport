@@ -1,6 +1,11 @@
 FROM golang:alpine as build-backend
 
 ARG VERSION
+ENV GOOS linux
+ARG GOARCH
+ENV GOARCH $GOARCH
+ARG GOARM
+ENV GOARM $GOARM
 
 COPY backend /srv/backend
 RUN cd /srv/backend && \
