@@ -1,0 +1,132 @@
+name: backend
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - backend/**
+      - .github/workflows/backend.yml
+      - Dockerfile.backend
+  pull_request:
+    branches:
+      - master
+    paths:
+      - backend/**
+      - .github/workflows/backend.yml
+      - Dockerfile.backend
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+      - name: Test
+        run: |
+          cd ${{ github.workspace }}/backend && go test -timeout=60s -covermode=count -coverprofile=${{ github.workspace }}/profile.cov_tmp ./...
+          cat ${{ github.workspace }}/profile.cov_tmp | grep -v "_mock.go" > ${{ github.workspace }}/profile.cov
+      - name: Install golangci-lint and goveralls
+        run: |
+          curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b ${{ github.workspace }} v1.32.0
+          GO111MODULE=off go get -u -v github.com/mattn/goveralls
+      - name: Lint
+        run: cd ${{ github.workspace }}/backend && ${{ github.workspace }}/golangci-lint run --modules-download-mode=readonly
+      - name: Submit coverage
+        run: $(go env GOPATH)/bin/goveralls -service="github" -coverprofile=${{ github.workspace }}/profile.cov
+        env:
+          COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint]
+    env:
+      DOCKER_CLI_EXPERIMENTAL: enabled
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+        os: [linux]
+        include:
+          - { arch: amd64, goarch: amd64, goarm: "" }
+          - { arch: arm64, goarch: arm64, goarm: "" }
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hashicorp/vault-action@v2.2.0
+        id: secrets
+        with:
+          url: http://vault.lafin.me:8200
+          method: approle
+          roleId: ${{ secrets.VAULT_ROLE_ID }}
+          secretId: ${{ secrets.VAULT_SECRET_ID }}
+          secrets: |
+            secret/infra/common docker-user | DOCKER_USER ;
+            secret/infra/common docker-token | DOCKER_TOKEN ;
+      - name: Build image
+        run: |
+          REPOSITORY=ghcr.io/${{ github.repository }}-api
+          docker build --build-arg VERSION=${{ github.ref }}:${{ github.sha }} --build-arg GOARCH=${{ matrix.goarch }} --build-arg GOARM=${{ matrix.goarm }} -t $REPOSITORY:${{ matrix.arch }} -f Dockerfile.backend .
+      - name: Publish image
+        if: github.ref == 'refs/heads/master'
+        run: |
+          REPOSITORY=ghcr.io/${{ github.repository }}-api
+          echo ${{ env.DOCKER_TOKEN }} | docker login ghcr.io -u ${{ env.DOCKER_USER }} --password-stdin
+          docker push $REPOSITORY:${{ matrix.arch }}
+  manifest:
+    runs-on: ubuntu-latest
+    needs: [lint, build]
+    env:
+      DOCKER_CLI_EXPERIMENTAL: enabled
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hashicorp/vault-action@v2.2.0
+        id: secrets
+        with:
+          url: http://vault.lafin.me:8200
+          method: approle
+          roleId: ${{ secrets.VAULT_ROLE_ID }}
+          secretId: ${{ secrets.VAULT_SECRET_ID }}
+          secrets: |
+            secret/infra/common docker-user | DOCKER_USER ;
+            secret/infra/common docker-token | DOCKER_TOKEN ;
+      - name: Publish manifest
+        run: |
+          REPOSITORY=ghcr.io/${{ github.repository }}-api
+          echo ${{ env.DOCKER_TOKEN }} | docker login ghcr.io -u ${{ env.DOCKER_USER }} --password-stdin
+          docker manifest create $REPOSITORY:latest $REPOSITORY:amd64 $REPOSITORY:arm64
+          docker manifest annotate $REPOSITORY $REPOSITORY:amd64 --arch "amd64" --os "linux" --variant ""
+          docker manifest annotate $REPOSITORY $REPOSITORY:arm64 --arch "arm64" --os "linux" --variant ""
+          docker manifest push $REPOSITORY
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [lint, build]
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hashicorp/vault-action@v2.2.0
+        id: secrets
+        with:
+          url: http://vault.lafin.me:8200
+          method: approle
+          roleId: ${{ secrets.VAULT_ROLE_ID }}
+          secretId: ${{ secrets.VAULT_SECRET_ID }}
+          secrets: |
+            secret/infra/common digitalocean-cluster-name | DIGITALOCEAN_CLUSTER_NAME ;
+            secret/infra/common digitalocean-access-token | DIGITALOCEAN_ACCESS_TOKEN ;
+            secret/infra/common docker-user | DOCKER_USER ;
+            secret/infra/common docker-token | DOCKER_TOKEN ;
+            secret/infra/common ssh-private-key | SSH_PRIVATE_KEY ;
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.4.1
+        with:
+          ssh-private-key: ${{ env.SSH_PRIVATE_KEY }}
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ env.DIGITALOCEAN_ACCESS_TOKEN }}
+      - name: Deploy
+        run: |
+          DIGITALOCEAN_CLUSTER_IP=$(doctl compute droplet get ${{ env.DIGITALOCEAN_CLUSTER_NAME }} --template {{.PublicIPv4}})
+          ssh-keyscan $DIGITALOCEAN_CLUSTER_IP >> $HOME/.ssh/known_hosts
+          doctl compute ssh ${{ env.DIGITALOCEAN_CLUSTER_NAME }} --ssh-command " \
+            echo ${{ env.DOCKER_TOKEN }} | docker login ghcr.io -u ${{ env.DOCKER_USER }} --password-stdin
+            docker-compose -f infra/docker-compose.${{ env.DIGITALOCEAN_CLUSTER_NAME }}.yml pull tallinn-transport-api; \
+            docker-compose -f infra/docker-compose.${{ env.DIGITALOCEAN_CLUSTER_NAME }}.yml up -d tallinn-transport-api; \
+          "
